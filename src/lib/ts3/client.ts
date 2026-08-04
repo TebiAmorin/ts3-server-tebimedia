@@ -7,7 +7,7 @@ let lastUsed = 0;
 const IS_SERVERLESS = !!process.env.VERCEL;
 const IDLE_TIMEOUT = 30_000;
 
-function getConfig() {
+function getBaseConfig() {
   const host = process.env.TS3_HOST;
   const username = process.env.TS3_QUERY_USER;
   const password = process.env.TS3_QUERY_PASSWORD;
@@ -18,13 +18,20 @@ function getConfig() {
     host,
     protocol: QueryProtocol.RAW,
     queryport: parseInt(process.env.TS3_QUERY_PORT || "10011"),
-    serverport: parseInt(process.env.TS3_SERVER_PORT || "9987"),
     username,
     password,
     nickname: "TS3Panel",
     keepAlive: !IS_SERVERLESS,
     keepAliveTimeout: 250,
   };
+}
+
+async function createConnection(): Promise<TeamSpeak> {
+  const config = getBaseConfig();
+  const ts = await TeamSpeak.connect(config);
+  const sid = process.env.TS3_SERVER_ID || "1";
+  await ts.useBySid(sid);
+  return ts;
 }
 
 export async function getTS3(): Promise<TeamSpeak> {
@@ -37,7 +44,7 @@ export async function getTS3(): Promise<TeamSpeak> {
     return connecting;
   }
 
-  connecting = TeamSpeak.connect(getConfig())
+  connecting = createConnection()
     .then((ts) => {
       instance = ts;
       connecting = null;
@@ -72,7 +79,7 @@ export async function getTS3(): Promise<TeamSpeak> {
 
 export async function withTS3<T>(fn: (ts: TeamSpeak) => Promise<T>): Promise<T> {
   if (IS_SERVERLESS) {
-    const ts = await TeamSpeak.connect(getConfig());
+    const ts = await createConnection();
     try {
       return await fn(ts);
     } finally {
