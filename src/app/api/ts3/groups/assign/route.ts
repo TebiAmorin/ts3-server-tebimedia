@@ -3,13 +3,28 @@ import {
   addClientToGroup,
   removeClientFromGroup,
   getClientGroups,
+  findClientDbByNickname,
 } from "@/lib/ts3/queries";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const cldbid = request.nextUrl.searchParams.get("cldbid");
-  if (!cldbid) return NextResponse.json({ error: "cldbid required" }, { status: 400 });
+  const search = request.nextUrl.searchParams.get("search");
+
+  if (search) {
+    try {
+      const results = await findClientDbByNickname(search);
+      return NextResponse.json({ results });
+    } catch (err) {
+      return NextResponse.json(
+        { error: "Failed to search clients", details: String(err) },
+        { status: 503 }
+      );
+    }
+  }
+
+  if (!cldbid) return NextResponse.json({ error: "cldbid or search required" }, { status: 400 });
 
   try {
     const groups = await getClientGroups(cldbid);

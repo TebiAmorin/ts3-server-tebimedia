@@ -286,7 +286,7 @@ export async function removeGroupPermission(sgid: string, permname: string): Pro
 export async function addClientToGroup(sgid: string, cldbid: string): Promise<ActionResult> {
   const ts = await getTS3();
   try {
-    await ts.serverGroupAddClient(sgid, cldbid);
+    await ts.serverGroupAddClient(cldbid, sgid);
     return { success: true, message: `Added client ${cldbid} to group ${sgid}` };
   } catch (err) {
     return { success: false, message: String(err) };
@@ -296,10 +296,37 @@ export async function addClientToGroup(sgid: string, cldbid: string): Promise<Ac
 export async function removeClientFromGroup(sgid: string, cldbid: string): Promise<ActionResult> {
   const ts = await getTS3();
   try {
-    await ts.serverGroupDelClient(sgid, cldbid);
+    await ts.serverGroupDelClient(cldbid, sgid);
     return { success: true, message: `Removed client ${cldbid} from group ${sgid}` };
   } catch (err) {
     return { success: false, message: String(err) };
+  }
+}
+
+export async function findClientDbByNickname(nickname: string): Promise<{ cldbid: string; nickname: string }[]> {
+  const ts = await getTS3();
+  try {
+    const results = await ts.clientDbFind(nickname, false);
+    const clients: { cldbid: string; nickname: string }[] = [];
+    for (const r of results) {
+      const raw = r as unknown as Record<string, unknown>;
+      const cldbid = String(raw.cldbid ?? "");
+      if (cldbid) {
+        try {
+          const infoArr = await ts.clientDbInfo(cldbid);
+          const infoRaw = (infoArr[0] ?? {}) as unknown as Record<string, unknown>;
+          clients.push({
+            cldbid,
+            nickname: String(infoRaw.clientNickname ?? nickname),
+          });
+        } catch {
+          clients.push({ cldbid, nickname });
+        }
+      }
+    }
+    return clients;
+  } catch {
+    return [];
   }
 }
 
