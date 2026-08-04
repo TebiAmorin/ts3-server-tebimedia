@@ -180,12 +180,27 @@ export async function serverStop(): Promise<ActionResult> {
 }
 
 export async function serverStart(): Promise<ActionResult> {
-  const ts = await getTS3();
   try {
+    const ts = await getTS3();
     await ts.serverStart("1");
     return { success: true, message: "Server started" };
-  } catch (err) {
-    return { success: false, message: String(err) };
+  } catch {
+    try {
+      const { TeamSpeak, QueryProtocol } = await import("ts3-nodejs-library");
+      const raw = await TeamSpeak.connect({
+        host: process.env.TS3_HOST!,
+        protocol: QueryProtocol.RAW,
+        queryport: parseInt(process.env.TS3_QUERY_PORT || "10011"),
+        username: process.env.TS3_QUERY_USER!,
+        password: process.env.TS3_QUERY_PASSWORD!,
+        nickname: "TS3Panel_Recovery",
+      });
+      await raw.serverStart("1");
+      await raw.quit().catch(() => {});
+      return { success: true, message: "Server started (recovery mode)" };
+    } catch (err2) {
+      return { success: false, message: String(err2) };
+    }
   }
 }
 
